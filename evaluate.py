@@ -100,8 +100,8 @@ def main(args):
 if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_dir', type=str, default="./models/bert_base_uncased/")
-    parser.add_argument('--dataset_dir', type=str, default="./datasets/imdb/IMDB.csv")
+    parser.add_argument('--model_dir', type=str, default="models/bert_base_uncased/")
+    parser.add_argument('--dataset_dir', type=str, default="datasets/imdb/IMDB.csv")
     parser.add_argument('--epochs', type=int, default=5)
     parser.add_argument('--learning_rate', type=float, default=1e-4)
     

@@ -114,9 +114,9 @@ def main(args):
 if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_dir', type=str, default="./models/bert_base_uncased")
-    parser.add_argument('--output_model_dir', type=str, default="./models/bert_kd")
-    parser.add_argument('--dataset_dir', type=str, default="./datasets/imdb.csv")
+    parser.add_argument('--model_dir', type=str, default="models/bert_base_uncased")
+    parser.add_argument('--output_model_dir', type=str, default="models/bert_kd")
+    parser.add_argument('--dataset_dir', type=str, default="datasets/imdb.csv")
     
     args = parser.parse_args()
     main(args)

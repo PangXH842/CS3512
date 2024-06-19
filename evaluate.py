@@ -1,3 +1,4 @@
+import time
 import pandas as pd
 import numpy as np
 import argparse
@@ -6,8 +7,9 @@ from torch.utils.data import DataLoader, TensorDataset
 from transformers import BertTokenizer, BertForSequenceClassification
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
+import os
 
-# 训练函数
+# Training function
 def train_epoch(model, data_loader, optimizer, device):
     model.train()
     total_loss = 0
@@ -24,7 +26,7 @@ def train_epoch(model, data_loader, optimizer, device):
         total_loss += loss.item()
     return total_loss / len(data_loader)
 
-# 评估函数
+# Evaluation function
 def evaluate(model, data_loader, device):
     model.eval()
     predictions = []
@@ -41,68 +43,81 @@ def evaluate(model, data_loader, device):
     return accuracy_score(true_labels, predictions)
 
 def main(args):
-    # 检查是否安装GPU，如果安装了则使用GPU，否则使用CPU
+    # Check if GPU is available, otherwise use CPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # 加载预训练的BERT tokenizer和模型
-    tokenizer = BertTokenizer.from_pretrained(args.model_dir+"tokenizer_config.json")
+    # Load pre-trained BERT tokenizer and model
+    tokenizer = BertTokenizer.from_pretrained(args.model_dir)
     model = BertForSequenceClassification.from_pretrained(args.model_dir, num_labels=2).to(device)
 
-    # 加载数据集
-    print(f"Loading dataset:{args.dataset_dir}...")
+    # Load dataset
+    if not os.path.isfile(args.dataset_dir):
+        raise FileNotFoundError(f"Dataset file not found: {args.dataset_dir}")
+    
+    print(f"Loading dataset from {args.dataset_dir}...")
     df = pd.read_csv(args.dataset_dir)
-    texts = df['review'][:100].tolist()
-    label_mapping = {'positive': 1, 'negative': 0}
-    labels = [label_mapping[label] for label in df['sentiment'][:100].tolist()]
-    labels = torch.tensor(labels).to(device)
 
-    # 将文本编码为BERT的输入格式
+    # Limit the dataset for quick experimentation, remove this line for full dataset processing
+    df = df.sample(n=min(50000, len(df)), random_state=42)  # Adjust the number as needed
+
+    # Preprocess the dataset
+    texts = df['review'].tolist()
+    label_mapping = {'positive': 1, 'negative': 0}
+    labels = [label_mapping[label] for label in df['sentiment'].tolist()]
+    labels = torch.tensor(labels)
+
+    # Tokenize the texts
     input_ids = []
     attention_masks = []
 
-    for i, text in enumerate(texts):
+    for text in texts:
         encoded = tokenizer.encode_plus(
             text,
             add_special_tokens=True,
-            max_length=512,
+            max_length=256,
             padding='max_length',
-            truncation=True,  # 确保长文本被截断
+            truncation=True,  # Ensure long texts are truncated
             return_attention_mask=True,
             return_tensors='pt'
         )
         input_ids.append(encoded['input_ids'])
         attention_masks.append(encoded['attention_mask'])
 
-    # 将列表转换为张量
-    input_ids = torch.cat(input_ids, dim=0).to(device)
-    attention_masks = torch.cat(attention_masks, dim=0).to(device)
+    # Convert lists to tensors
+    input_ids = torch.cat(input_ids, dim=0)
+    attention_masks = torch.cat(attention_masks, dim=0)
 
-    # 划分训练集和测试集
+    # Split the data into training and validation sets
     train_inputs, val_inputs, train_labels, val_labels = train_test_split(input_ids, labels, random_state=2024, test_size=0.1)
     train_masks, val_masks, _, _ = train_test_split(attention_masks, input_ids, random_state=2024, test_size=0.1)
 
-    # 创建TensorDataset和DataLoader
+    # Create TensorDataset and DataLoader
     train_dataset = TensorDataset(train_inputs, train_masks, train_labels)
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 
     val_dataset = TensorDataset(val_inputs, val_masks, val_labels)
     val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
 
-    # 定义优化器和损失函数
-    optimizer = torch.optim.AdamW(model.parameters(), args.learning_rate)
+    # Define optimizer
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
 
-    # 训练和评估循环
+    # Start timing
+    start_time = time.time()
+
+    # Training and evaluation loop
     for epoch in range(args.epochs):
         train_loss = train_epoch(model, train_loader, optimizer, device)
         val_acc = evaluate(model, val_loader, device)
         print(f'Epoch {epoch+1}/{args.epochs}, Train Loss: {train_loss:.4f}, Val Acc: {val_acc:.4f}')
+
+    print(f"Total time consumed (s): {time.time()-start_time}")
 
 if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_dir', type=str, default="models/bert_base_uncased/")
     parser.add_argument('--dataset_dir', type=str, default="datasets/imdb/IMDB.csv")
-    parser.add_argument('--epochs', type=int, default=5)
+    parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--learning_rate', type=float, default=1e-4)
     
     args = parser.parse_args()

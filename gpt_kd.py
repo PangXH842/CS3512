@@ -1,12 +1,38 @@
 import argparse
+import os
 import torch
 from torch.nn import functional as F
-from torch.utils.data import DataLoader
-from datasets import load_dataset
-from transformers import BertForSequenceClassification, BertTokenizerFast
-from transformers import BertConfig, BertForSequenceClassification
-from transformers import AdamW
-from sklearn.metrics import accuracy_score
+from torch.utils.data import DataLoader, TensorDataset
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from transformers import BertTokenizerFast, BertConfig, BertForSequenceClassification
+
+def load_and_preprocess_data(file_path):
+    # Load dataset
+    df = pd.read_csv(file_path)
+    
+    # Split dataset into train and validation sets
+    train_df, val_df = train_test_split(df, test_size=0.2, random_state=42)
+    
+    # Tokenize the datasets
+    tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
+    
+    def tokenize_data(text, labels):
+        encodings = tokenizer(
+            text.tolist(), 
+            padding='max_length', 
+            truncation=True, 
+            max_length=128, 
+            return_tensors='pt'
+        )
+        label_mapping = {'positive': 1, 'negative': 0}
+        labels = [label_mapping[label] for label in labels.tolist()]
+        return encodings, labels
+    
+    train_encodings, train_labels = tokenize_data(train_df['review'], train_df['sentiment'])
+    val_encodings, val_labels = tokenize_data(val_df['review'], val_df['sentiment'])
+    
+    return train_encodings, train_labels, val_encodings, val_labels
 
 def distillation_loss(y_student, y_teacher, labels, alpha=0.5, temperature=2.0):
     """
@@ -24,42 +50,30 @@ def distillation_loss(y_student, y_teacher, labels, alpha=0.5, temperature=2.0):
     y_student_soft = F.log_softmax(y_student / temperature, dim=-1)
     distillation_loss = F.kl_div(y_student_soft, y_teacher_soft, reduction='batchmean') * (temperature ** 2)
     
-    # Combine the two losses
-    return alpha * student_loss + (1 - alpha) * distillation_loss
+    # Combine the student loss and distillation loss
+    total_loss = alpha * student_loss + (1 - alpha) * distillation_loss
+    return total_loss
 
 def main(args):
-    # Load pre-trained BERT model and tokenizer
+    # Load and preprocess the data
+    train_encodings, train_labels, val_encodings, val_labels = load_and_preprocess_data(args.dataset_dir)
+
+    # Load the teacher model
     teacher_model = BertForSequenceClassification.from_pretrained(args.model_dir)
-    tokenizer = BertTokenizerFast.from_pretrained(args.model_dir)
-
-    # Load dataset
-    dataset = load_dataset(args.dataset_dir)
-
-    # Tokenize the Dataset
-
-    def tokenize_function(examples):
-        return tokenizer(examples['sentence1'], examples['sentence2'], truncation=True, padding='max_length', max_length=128)
-
-    tokenized_datasets = dataset.map(tokenize_function, batched=True)
-
-    # Define a smaller configuration for the student model
-    student_config = BertConfig(
-        vocab_size=30522,
-        hidden_size=384,  # Smaller hidden size
-        num_hidden_layers=6,  # Fewer layers
-        num_attention_heads=12,
-        intermediate_size=1536  # Corresponding intermediate size
-    )
 
     # Initialize the student model
+    student_config = BertConfig.from_pretrained('bert-base-uncased', num_labels=2)
     student_model = BertForSequenceClassification(student_config)
 
-    # Prepare data loaders
-    train_dataset = tokenized_datasets['train'].shuffle(seed=42).select(range(1000))  # Use a subset for quick experimentation
-    train_loader = DataLoader(train_dataset, batch_size=16, collate_fn=lambda x: x)
+    # Create DataLoader
+    train_dataset = TensorDataset(train_encodings['input_ids'], train_encodings['attention_mask'], train_labels)
+    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
+
+    val_dataset = TensorDataset(val_encodings['input_ids'], val_encodings['attention_mask'], val_labels)
+    val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
 
     # Optimizer
-    optimizer = AdamW(student_model.parameters(), lr=5e-5)
+    optimizer = torch.optim.AdamW(student_model.parameters(), lr=5e-5)
 
     # Training loop
     num_epochs = 3
@@ -71,13 +85,12 @@ def main(args):
     for epoch in range(num_epochs):
         student_model.train()
         for batch in train_loader:
-            inputs = {k: v.to(device) for k, v in batch.items() if k != 'label'}
-            labels = batch['label'].to(device)
+            input_ids, attention_mask, labels = [b.to(device) for b in batch]
 
             # Forward pass for teacher and student
             with torch.no_grad():
-                teacher_outputs = teacher_model(**inputs)
-            student_outputs = student_model(**inputs)
+                teacher_outputs = teacher_model(input_ids=input_ids, attention_mask=attention_mask)
+            student_outputs = student_model(input_ids=input_ids, attention_mask=attention_mask)
 
             # Compute the distillation loss
             loss = distillation_loss(student_outputs.logits, teacher_outputs.logits, labels)
@@ -91,36 +104,19 @@ def main(args):
 
     print("Knowledge distillation training complete.")
 
-    # Prepare the validation loader
-    val_dataset = tokenized_datasets['validation']
-    val_loader = DataLoader(val_dataset, batch_size=64, collate_fn=lambda x: x)
-
-    # Evaluation loop
-    student_model.eval()
-    all_preds = []
-    all_labels = []
-
-    with torch.no_grad():
-        for batch in val_loader:
-            inputs = {k: v.to(device) for k, v in batch.items() if k != 'label'}
-            labels = batch['label'].to(device)
-
-            outputs = student_model(**inputs)
-            preds = torch.argmax(outputs.logits, dim=-1)
-
-            all_preds.extend(preds.cpu().numpy())
-            all_labels.extend(labels.cpu().numpy())
-
-    # Compute accuracy
-    accuracy = accuracy_score(all_labels, all_preds)
-    print(f'Validation Accuracy: {accuracy * 100:.2f}%')
+    # Save the student model
+    os.makedirs(args.output_model_dir, exist_ok=True)
+    student_model.save_pretrained(args.output_model_dir)
+    tokenizer = BertTokenizerFast.from_pretrained(args.model_dir+"tokenizer_config.json")
+    tokenizer.save_pretrained(args.output_model_dir)
+    print(f"Student model saved to {args.output_model_dir}")
 
 if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_dir', type=str, default="./models/bert_base_uncased")
     parser.add_argument('--output_model_dir', type=str, default="./models/bert_kd")
-    parser.add_argument('--dataset_dir', type=str, default="./datasets/imdb")
+    parser.add_argument('--dataset_dir', type=str, default="./datasets/imdb.csv")
     
     args = parser.parse_args()
     main(args)

@@ -60,12 +60,13 @@ def main(args):
     input_ids = []
     attention_masks = []
 
-    for text in texts:
+    for i, text in enumerate(texts):
         encoded = tokenizer.encode_plus(
             text,
             add_special_tokens=True,
             max_length=512,
-            padding=True,
+            padding='max_length',
+            truncation=True,  # 确保长文本被截断
             return_attention_mask=True,
             return_tensors='pt'
         )

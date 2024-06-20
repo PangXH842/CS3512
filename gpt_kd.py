@@ -55,6 +55,11 @@ def distillation_loss(y_student, y_teacher, labels, alpha=0.5, temperature=2.0):
     return total_loss
 
 def main(args):
+    # Create student model directory
+    os.makedirs(args.output_model_dir, exist_ok=True)
+    tokenizer = BertTokenizerFast.from_pretrained(args.model_dir+"tokenizer_config.json")
+    tokenizer.save_pretrained(args.output_model_dir)
+
     # Load and preprocess the data
     train_encodings, train_labels, val_encodings, val_labels = load_and_preprocess_data(args)
 
@@ -104,11 +109,8 @@ def main(args):
 
     print("Knowledge distillation training complete.")
 
-    # Save the student model
-    os.makedirs(args.output_model_dir, exist_ok=True)
+    # Save student model
     student_model.save_pretrained(args.output_model_dir)
-    tokenizer = BertTokenizerFast.from_pretrained(args.model_dir+"tokenizer_config.json")
-    tokenizer.save_pretrained(args.output_model_dir)
     print(f"Student model saved to {args.output_model_dir}")
 
 if __name__ == "__main__":

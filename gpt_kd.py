@@ -7,15 +7,15 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from transformers import BertTokenizerFast, BertConfig, BertForSequenceClassification
 
-def load_and_preprocess_data(file_path):
+def load_and_preprocess_data(args):
     # Load dataset
-    df = pd.read_csv(file_path)
+    df = pd.read_csv(args.dataset_dir)
     
     # Split dataset into train and validation sets
     train_df, val_df = train_test_split(df, test_size=0.2, random_state=42)
     
     # Tokenize the datasets
-    tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
+    tokenizer = BertTokenizerFast.from_pretrained(args.model_dir)
     
     def tokenize_data(text, labels):
         encodings = tokenizer(
@@ -26,7 +26,7 @@ def load_and_preprocess_data(file_path):
             return_tensors='pt'
         )
         label_mapping = {'positive': 1, 'negative': 0}
-        labels = [label_mapping[label] for label in labels.tolist()]
+        labels = torch.tensor([label_mapping[label] for label in labels.tolist()])
         return encodings, labels
     
     train_encodings, train_labels = tokenize_data(train_df['review'], train_df['sentiment'])
@@ -56,7 +56,7 @@ def distillation_loss(y_student, y_teacher, labels, alpha=0.5, temperature=2.0):
 
 def main(args):
     # Load and preprocess the data
-    train_encodings, train_labels, val_encodings, val_labels = load_and_preprocess_data(args.dataset_dir)
+    train_encodings, train_labels, val_encodings, val_labels = load_and_preprocess_data(args)
 
     # Load the teacher model
     teacher_model = BertForSequenceClassification.from_pretrained(args.model_dir)

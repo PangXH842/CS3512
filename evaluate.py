@@ -57,8 +57,8 @@ def main(args):
     print(f"Loading dataset from {args.dataset_dir}...")
     df = pd.read_csv(args.dataset_dir)
 
-    # Limit the dataset for quick experimentation, remove this line for full dataset processing
-    df = df.sample(n=min(50000, len(df)), random_state=42)  # Adjust the number as needed
+    # Limit the dataset for quick experimentation
+    df = df.sample(n=min(5000, len(df)), random_state=42)  
 
     # Preprocess the dataset
     texts = df['review'].tolist()

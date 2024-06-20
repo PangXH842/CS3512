@@ -57,7 +57,7 @@ def distillation_loss(y_student, y_teacher, labels, alpha=0.5, temperature=2.0):
 def main(args):
     # Create student model directory
     os.makedirs(args.output_model_dir, exist_ok=True)
-    tokenizer = BertTokenizerFast.from_pretrained(args.model_dir+"tokenizer_config.json")
+    tokenizer = BertTokenizerFast.from_pretrained(args.model_dir)
     tokenizer.save_pretrained(args.output_model_dir)
 
     # Load and preprocess the data
@@ -67,7 +67,7 @@ def main(args):
     teacher_model = BertForSequenceClassification.from_pretrained(args.model_dir)
 
     # Initialize the student model
-    student_config = BertConfig.from_pretrained('bert-base-uncased', num_labels=2)
+    student_config = BertConfig.from_pretrained(args.model_dir, num_labels=2)
     student_model = BertForSequenceClassification(student_config)
 
     # Create DataLoader

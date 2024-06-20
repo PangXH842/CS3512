@@ -1,11 +1,16 @@
 import torch
 import argparse
-from transformers import BertForSequenceClassification, BertTokenizer
+from transformers import BertForSequenceClassification, BertTokenizerFast
 import os
 import torch.nn.utils.prune as prune
 
 # Function to apply pruning to the BERT model
 def main(args):
+    # Create output model directory and save tokenizer
+    os.makedirs(args.output_model_dir, exist_ok=True)
+    tokenizer = BertTokenizerFast.from_pretrained(args.model_dir)
+    tokenizer.save_pretrained(args.output_model_dir)
+
     # Load the pre-trained BERT model
     model = BertForSequenceClassification.from_pretrained(args.model_dir)
     model.eval()  # Set the model to evaluation mode
@@ -28,9 +33,6 @@ def main(args):
         prune.remove(module, 'weight')
 
     # Save the pruned model
-    if not os.path.exists(args.output_model_dir):
-        os.makedirs(args.output_model_dir)
-    
     model.save_pretrained(args.output_model_dir)
     print(f"Pruned model saved to {args.output_model_dir}")
 

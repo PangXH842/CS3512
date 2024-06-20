@@ -76,7 +76,7 @@ def main(args):
     optimizer = torch.optim.AdamW(student_model.parameters(), lr=5e-5)
 
     # Training loop
-    num_epochs = 3
+    num_epochs = args.epochs
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     teacher_model.to(device)
     student_model.to(device)
@@ -100,7 +100,7 @@ def main(args):
             loss.backward()
             optimizer.step()
 
-        print(f'Epoch {epoch + 1}/{num_epochs}, Loss: {loss.item()}')
+        print(f'Epoch {epoch + 1}/{args.epochs}, Loss: {loss.item()}')
 
     print("Knowledge distillation training complete.")
 
@@ -117,6 +117,7 @@ if __name__ == "__main__":
     parser.add_argument('--model_dir', type=str, default="models/bert_base_uncased")
     parser.add_argument('--output_model_dir', type=str, default="models/bert_kd")
     parser.add_argument('--dataset_dir', type=str, default="datasets/imdb.csv")
+    parser.add_argument('--epochs', type=int, default=3)
     
     args = parser.parse_args()
     main(args)

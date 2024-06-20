@@ -4,9 +4,9 @@ from transformers import BertForSequenceClassification, BertTokenizer
 import os
 
 # Function to quantize the BERT model
-def quantize_model(model_dir, output_dir):
+def main(args):
     # Load the pre-trained BERT model
-    model = BertForSequenceClassification.from_pretrained(model_dir)
+    model = BertForSequenceClassification.from_pretrained(args.model_dir)
     model.eval()  # Set the model to evaluation mode
 
     # Fuse modules (if applicable) - This step might be optional depending on the model structure
@@ -27,14 +27,11 @@ def quantize_model(model_dir, output_dir):
     torch.quantization.convert(model, inplace=True)
 
     # Save the quantized model
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    if not os.path.exists(args.output_model_dir):
+        os.makedirs(args.output_model_dir)
     
-    model.save_pretrained(output_dir)
-    print(f"Quantized model saved to {output_dir}")
-
-def main(args):
-    quantize_model(args.model_dir, args.output_dir)
+    model.save_pretrained(args.output_model_dir)
+    print(f"Quantized model saved to {args.output_model_dir}")
 
 if __name__ == "__main__":
     # Parse arguments

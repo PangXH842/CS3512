@@ -5,9 +5,9 @@ import os
 import torch.nn.utils.prune as prune
 
 # Function to apply pruning to the BERT model
-def prune_model(model_dir, output_dir, amount):
+def main(args):
     # Load the pre-trained BERT model
-    model = BertForSequenceClassification.from_pretrained(model_dir)
+    model = BertForSequenceClassification.from_pretrained(args.model_dir)
     model.eval()  # Set the model to evaluation mode
 
     # Specify the parameters to prune (e.g., weights in linear layers)
@@ -20,7 +20,7 @@ def prune_model(model_dir, output_dir, amount):
     prune.global_unstructured(
         parameters_to_prune,
         pruning_method=prune.L1Unstructured,
-        amount=amount,
+        amount=args.amount,
     )
 
     # Remove the pruning reparameterization so the model can be saved
@@ -28,14 +28,11 @@ def prune_model(model_dir, output_dir, amount):
         prune.remove(module, 'weight')
 
     # Save the pruned model
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    if not os.path.exists(args.output_model_dir):
+        os.makedirs(args.output_model_dir)
     
-    model.save_pretrained(output_dir)
-    print(f"Pruned model saved to {output_dir}")
-
-def main(args):
-    prune_model(args.model_dir, args.output_dir, args.amount)
+    model.save_pretrained(args.output_model_dir)
+    print(f"Pruned model saved to {args.output_model_dir}")
 
 if __name__ == "__main__":
     # Parse arguments

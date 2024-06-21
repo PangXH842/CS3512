@@ -52,7 +52,7 @@ def main(args):
     factorized_model = factorize_model(model, args.factor_size)
     
     # Save the factorized model
-    model.save_pretrained(args.output_model_dir)
+    factorized_model.save_pretrained(args.output_model_dir)
     print(f"Factorized model saved to {args.output_model_dir}")
 
 if __name__ == "__main__":

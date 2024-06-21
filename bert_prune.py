@@ -24,13 +24,23 @@ def main(args):
     model.eval()  # Set the model to evaluation mode
 
     # Specify the parameters to prune (e.g., weights in linear layers)
-    parameters_to_prune = [(module, 'weight') for name, module in model.named_modules() if isinstance(module, torch.nn.Linear)]
+    parameters_to_prune = []
+    for name, module in model.named_modules():
+        if isinstance(module, torch.nn.Linear) and 'bert' not in name:
+            parameters_to_prune.append((module, 'weight'))
 
     # Apply pruning based on the specified type (structured or unstructured)
-    if args.structured:
+    if args.structured:# Define a global structured pruning strategy
+        def structured_pruning(model, amount):
+            for module, param in parameters_to_prune:
+                prune.structured(module, name=param, amount=amount, mask=prune.random_mask)
+
         # Apply structured pruning
+        structured_pruning(model, args.amount)
+
+        # Remove the pruning reparameterization so the model can be saved
         for module, param in parameters_to_prune:
-            structured_pruning(module, args.amount)
+            prune.remove(module, param)
     else:
         # Apply global unstructured pruning
         prune.global_unstructured(

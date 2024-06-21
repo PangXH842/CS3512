@@ -2,6 +2,7 @@ import time
 import pandas as pd
 import numpy as np
 import argparse
+import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 from transformers import BertTokenizer, BertForSequenceClassification
@@ -41,6 +42,22 @@ def evaluate(model, data_loader, device):
             predictions.extend(outputs.logits.argmax(dim=1).tolist())
             true_labels.extend(labels.tolist())
     return accuracy_score(true_labels, predictions)
+
+def generate_line_graph(x_data, y_data, x_label, y_label, title, legend_labels, save_path):
+    plt.figure(figsize=(10, 6))  # Adjust the figure size as needed
+    
+    plt.plot(x_data, y_data, linestyle='-', label=legend_labels[0])
+    
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.title(title)
+    # plt.legend()
+
+    # plt.xticks(np.arange(1,11), x_data, rotation=0)
+    
+    plt.grid(True)  # Add grid lines
+    
+    plt.savefig(save_path)
 
 def main(args):
     # Check if GPU is available, otherwise use CPU
@@ -101,6 +118,9 @@ def main(args):
     # Define optimizer
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
 
+    # Store loss and acc for graph plotting
+    loss_list, acc_list = [], []
+
     # Start timing
     start_time = time.time()
 
@@ -111,6 +131,17 @@ def main(args):
         print(f'Epoch {epoch+1}/{args.epochs}, Train Loss: {train_loss:.4f}, Val Acc: {val_acc:.4f}')
 
     print(f"Total time consumed (s): {time.time()-start_time}")
+
+    # Plot graph
+    model_name = args.model_dir.split('/')[1]
+    x_data = [i+1 for i in range(args.epochs)]
+    g_title = f"Loss of {model_name} (lr={args.learning_rate})"
+    g_path = f"graph_{model_name}_loss.png"
+    generate_line_graph(x_data, loss_list, "Epochs", "Loss", g_title, ["loss"], g_path)
+    
+    g_title = f"Accuracy of {model_name} (lr={args.learning_rate})"
+    g_path = f"graph_{model_name}_acc.png"
+    generate_line_graph(x_data, acc_list, "Epochs", "Accuracy", g_title, ["accuracy"], g_path)
 
 if __name__ == "__main__":
     # Parse arguments

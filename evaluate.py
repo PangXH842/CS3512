@@ -160,7 +160,7 @@ if __name__ == "__main__":
     parser.add_argument('--model_dir', type=str, default="models/bert_base_uncased/")
     parser.add_argument('--dataset_dir', type=str, default="datasets/imdb/IMDB.csv")
     parser.add_argument('--epochs', type=int, default=10)
-    parser.add_argument('--learning_rate', type=float, default=1e-4)
+    parser.add_argument('--learning_rate', type=float, default=1e-3)
     
     args = parser.parse_args()
     main(args)

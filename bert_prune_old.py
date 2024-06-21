@@ -4,6 +4,7 @@ from transformers import BertForSequenceClassification, BertTokenizerFast
 import os
 import torch.nn.utils.prune as prune
 
+# Function to apply pruning to the BERT model
 def main(args):
     # Create output model directory and save tokenizer
     os.makedirs(args.output_model_dir, exist_ok=True)
@@ -15,38 +16,32 @@ def main(args):
     model.eval()  # Set the model to evaluation mode
 
     # Specify the parameters to prune (e.g., weights in linear layers)
-    parameters_to_prune = [(module, 'weight') for name, module in model.named_modules() if isinstance(module, torch.nn.Linear)]
+    parameters_to_prune = []
+    for name, module in model.named_modules():
+        if isinstance(module, torch.nn.Linear):
+            parameters_to_prune.append((module, 'weight'))
 
-    # Apply pruning based on the specified type (structured or unstructured)
-    if args.structured:
-        # Apply global structured pruning
-        prune.global_structured(
-            parameters_to_prune,
-            pruning_method=prune.RandomStructured,
-            amount=args.amount,
-        )
-    else:
-        # Apply global unstructured pruning
-        prune.global_unstructured(
-            parameters_to_prune,
-            pruning_method=prune.L1Unstructured,
-            amount=args.amount,
-        )
+    # Apply global pruning
+    prune.global_unstructured(
+        parameters_to_prune,
+        pruning_method=prune.L1Unstructured,
+        amount=args.amount,
+    )
 
     # Remove the pruning reparameterization so the model can be saved
     for module, param in parameters_to_prune:
-        prune.remove(module, param)
+        prune.remove(module, 'weight')
 
     # Save the pruned model
     model.save_pretrained(args.output_model_dir)
     print(f"Pruned model saved to {args.output_model_dir}")
 
 if __name__ == "__main__":
+    # Parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_dir', type=str, default="models/bert_base_uncased")
     parser.add_argument('--output_model_dir', type=str, default="models/bert_pruned")
     parser.add_argument('--amount', type=float, default=0.2, help="Proportion of connections to prune (0 to 1).")
-    parser.add_argument('--structured', type=bool, default=False, help="Whether to apply structured pruning.")
-
+    
     args = parser.parse_args()
     main(args)

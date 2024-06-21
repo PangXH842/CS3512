@@ -43,21 +43,32 @@ def evaluate(model, data_loader, device):
             true_labels.extend(labels.tolist())
     return accuracy_score(true_labels, predictions)
 
-def generate_line_graph(x_data, y_data, x_label, y_label, title, legend_labels, save_path):
+def generate_line_graph(x_data, y_data, x_label, y_label, title, legend_labels, filename):
     plt.figure(figsize=(10, 6))  # Adjust the figure size as needed
     
-    plt.plot(x_data, y_data, linestyle='-', label=legend_labels[0])
+    fig, ax1 = plt.subplots() 
     
-    plt.xlabel(x_label)
-    plt.ylabel(y_label)
+    color = 'tab:red'
+    ax1.set_xlabel(x_label) 
+    ax1.set_ylabel(y_label[0], color = color) 
+    ax1.plot(x_data, y_data[0], color = color) 
+    ax1.tick_params(axis ='y', labelcolor = color) 
+    
+    ax2 = ax1.twinx() 
+    
+    color = 'tab:green'
+    ax2.set_ylabel(y_label[1], color = color) 
+    ax2.plot(x_data, y_data[1], color = color) 
+    ax2.tick_params(axis ='y', labelcolor = color) 
+    
     plt.title(title)
     # plt.legend()
 
-    # plt.xticks(np.arange(1,11), x_data, rotation=0)
+    plt.xticks(np.arange(1,11), x_data, rotation=0)
     
     plt.grid(True)  # Add grid lines
     
-    plt.savefig(save_path)
+    plt.savefig(filename)
 
 def main(args):
     # Check if GPU is available, otherwise use CPU
@@ -135,13 +146,13 @@ def main(args):
     # Plot graph
     model_name = args.model_dir.split('/')[1]
     x_data = [i+1 for i in range(args.epochs)]
-    g_title = f"Loss of {model_name} (lr={args.learning_rate})"
-    g_path = f"graph_{model_name}_loss.png"
-    generate_line_graph(x_data, loss_list, "Epochs", "Loss", g_title, ["loss"], g_path)
-    
-    g_title = f"Accuracy of {model_name} (lr={args.learning_rate})"
-    g_path = f"graph_{model_name}_acc.png"
-    generate_line_graph(x_data, acc_list, "Epochs", "Accuracy", g_title, ["accuracy"], g_path)
+    y_data = [loss_list, acc_list]
+    legend_labels = ["loss", "accuracy"]
+    x_label = "Epoch"
+    y_label = ["Loss", "Accuracy"]
+    title = f"Evaluation of {model_name} (lr={args.learning_rate})"
+    filename = f"graph_{model_name}.png"
+    generate_line_graph(x_data, y_data, x_label, y_label, title, legend_labels, filename)
 
 if __name__ == "__main__":
     # Parse arguments

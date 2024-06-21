@@ -78,7 +78,7 @@ def main(args):
     val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
 
     # Optimizer
-    optimizer = torch.optim.AdamW(student_model.parameters(), lr=5e-5)
+    optimizer = torch.optim.AdamW(student_model.parameters(), lr=args.learning_rate)
 
     # Training loop
     num_epochs = args.epochs
@@ -120,6 +120,7 @@ if __name__ == "__main__":
     parser.add_argument('--output_model_dir', type=str, default="models/bert_kd")
     parser.add_argument('--dataset_dir', type=str, default="datasets/imdb/IMDB.csv")
     parser.add_argument('--epochs', type=int, default=3)
+    parser.add_argument('--learning_rate', type=float, default=1e-3)
     
     args = parser.parse_args()
     main(args)

@@ -11,7 +11,7 @@ def structured_pruning(module, amount):
             mask = torch.ones_like(param, dtype=torch.bool)
             mask[param.abs() < (amount * param.abs().max())] = False
             # Apply the mask to the weights
-            prune.custom_mask(module, name, mask)
+            prune.custom_from_mask(module, name, mask)
 
 def main(args):
     # Create output model directory and save tokenizer

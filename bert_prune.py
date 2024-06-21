@@ -30,17 +30,11 @@ def main(args):
             parameters_to_prune.append((module, 'weight'))
 
     # Apply pruning based on the specified type (structured or unstructured)
-    if args.structured:# Define a global structured pruning strategy
-        def structured_pruning(model, amount):
-            for module, param in parameters_to_prune:
-                prune.structured(module, name=param, amount=amount, mask=prune.random_mask)
-
+    if args.structured:
         # Apply structured pruning
-        structured_pruning(model, args.amount)
-
-        # Remove the pruning reparameterization so the model can be saved
         for module, param in parameters_to_prune:
-            prune.remove(module, param)
+            prune.random_structured(module, name=param, amount=args.amount, dim=1)
+
     else:
         # Apply global unstructured pruning
         prune.global_unstructured(

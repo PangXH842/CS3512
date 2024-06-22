@@ -4,15 +4,6 @@ from transformers import BertForSequenceClassification, BertTokenizerFast
 import os
 import torch.nn.utils.prune as prune
 
-def structured_pruning(module, amount):
-    for name, param in module.named_parameters():
-        if 'weight' in name:
-            # Create a mask for the weights based on the amount to prune
-            mask = torch.ones_like(param, dtype=torch.bool)
-            mask[param.abs() < (amount * param.abs().max())] = False
-            # Apply the mask to the weights
-            prune.custom_from_mask(module, name, mask)
-
 def main(args):
     # Create output model directory and save tokenizer
     os.makedirs(args.output_model_dir, exist_ok=True)

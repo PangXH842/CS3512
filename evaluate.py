@@ -43,7 +43,7 @@ def evaluate(model, data_loader, device):
             true_labels.extend(labels.tolist())
     return accuracy_score(true_labels, predictions)
 
-def generate_line_graph(x_data, y_data, x_label, y_label, title, legend_labels, filename):
+def generate_line_graph(x_data, y1_data, y2_data, x_label, y_label, title, legend_labels, filename, epochs):
     plt.figure(figsize=(10, 6))  # Adjust the figure size as needed
     
     fig, ax1 = plt.subplots() 
@@ -51,20 +51,20 @@ def generate_line_graph(x_data, y_data, x_label, y_label, title, legend_labels, 
     color = 'tab:red'
     ax1.set_xlabel(x_label) 
     ax1.set_ylabel(y_label[0], color = color) 
-    ax1.plot(x_data, y_data[0], color = color) 
+    ax1.plot(x_data, y1_data, color = color) 
     ax1.tick_params(axis ='y', labelcolor = color) 
     
     ax2 = ax1.twinx() 
     
     color = 'tab:green'
     ax2.set_ylabel(y_label[1], color = color) 
-    ax2.plot(x_data, y_data[1], color = color) 
+    ax2.plot(x_data, y2_data, color = color) 
     ax2.tick_params(axis ='y', labelcolor = color) 
     
     plt.title(title)
     # plt.legend()
 
-    plt.xticks(np.arange(1,11), x_data, rotation=0)
+    plt.xticks(np.arange(1,epochs+1), x_data, rotation=0)
     
     plt.grid(True)  # Add grid lines
     
@@ -139,20 +139,23 @@ def main(args):
     for epoch in range(args.epochs):
         train_loss = train_epoch(model, train_loader, optimizer, device)
         val_acc = evaluate(model, val_loader, device)
+        loss_list.append(train_loss)
+        acc_list.append(val_acc)
         print(f'Epoch {epoch+1}/{args.epochs}, Train Loss: {train_loss:.4f}, Val Acc: {val_acc:.4f}')
 
     print(f"Total time consumed (s): {time.time()-start_time}")
+    print(f"Average accuracy: {np.mean(acc_list)}")
 
     # Plot graph
     model_name = args.model_dir.split('/')[1]
     x_data = [i+1 for i in range(args.epochs)]
-    y_data = [loss_list, acc_list]
+    y1_data, y2_data = loss_list, acc_list
     legend_labels = ["loss", "accuracy"]
     x_label = "Epoch"
     y_label = ["Loss", "Accuracy"]
     title = f"Evaluation of {model_name} (lr={args.learning_rate})"
     filename = f"graph_{model_name}.png"
-    generate_line_graph(x_data, y_data, x_label, y_label, title, legend_labels, filename)
+    generate_line_graph(x_data, y1_data, y2_data, x_label, y_label, title, legend_labels, filename, args.epochs)
 
 if __name__ == "__main__":
     # Parse arguments
